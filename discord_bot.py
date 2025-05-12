@@ -13,12 +13,12 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ✅ On bot start
+# ✅ When bot is online
 @bot.event
 async def on_ready():
     print(f"✅ Bot is online as {bot.user}")
 
-# ✅ Fetch match odds from working region
+# ✅ Fetch match odds
 def fetch_match_odds(team1, team2):
     url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=us&markets=h2h&apiKey={ODDS_API_KEY}"
     try:
@@ -75,12 +75,15 @@ async def predict(ctx, team1: str, team2: str):
     except Exception as e:
         await ctx.send(f"❌ Prediction error: {e}")
 
-# ✅ Upcoming matches listing
+# ✅ Upcoming matches with full debug tracing
 @bot.command()
 async def upcoming(ctx):
+    print("📢 !upcoming command triggered")
+
     url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=us&markets=h2h&apiKey={ODDS_API_KEY}"
     try:
-        print(f"🔍 Fetching from: {url}")
+        print(f"🔍 Sending request to: {url}")
+
         res = requests.get(url)
 
         print(f"🔁 Status code: {res.status_code}")
@@ -91,11 +94,11 @@ async def upcoming(ctx):
             return
 
         data = res.json()
+        print("✅ JSON decoded")
+
         if not data:
             await ctx.send("❌ No upcoming EPL matches found.")
             return
-
-        print("✅ Successfully fetched upcoming matches.")
 
         message = "**🗓 Upcoming EPL Matches:**\n"
         for match in data[:10]:
@@ -103,15 +106,16 @@ async def upcoming(ctx):
             message += f"- {home} vs {away}\n"
 
         await ctx.send(message)
+        print("✅ Match list sent to Discord")
 
     except Exception as e:
         print("❌ Exception in upcoming command:", e)
         await ctx.send("⚠️ Exception occurred when fetching match list.")
 
-# ✅ Ping command
+# ✅ Basic ping test
 @bot.command()
 async def ping(ctx):
     await ctx.send("✅ Bot is alive.")
 
-# ✅ Start the bot
+# ✅ Start bot
 bot.run(BOT_TOKEN)
