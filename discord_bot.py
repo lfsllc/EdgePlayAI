@@ -52,7 +52,22 @@ def fetch_match_odds(team1, team2):
 
 # ✅ Predict command
 @bot.command()
-async def predict(ctx, team1: str, team2: str):
+async def predict(ctx, *, message: str):
+    logging.info(f"📥 Raw predict input: {message}")
+    
+    try:
+        parts = message.lower().split(" vs ")
+        if len(parts) != 2:
+            await ctx.send("⚠️ Please use the format: `!predict TeamA vs TeamB`")
+            return
+
+        team1 = parts[0].strip()
+        team2 = parts[1].strip()
+    except Exception as e:
+        await ctx.send("⚠️ Invalid input format.")
+        logging.error(f"❌ Input parse error: {e}")
+        return
+
     odds = fetch_match_odds(team1, team2)
 
     if not odds or None in odds:
@@ -72,10 +87,10 @@ async def predict(ctx, team1: str, team2: str):
 
         data = response.json()
         await ctx.send(
-            f"📊 **EdgePlay AI Prediction** for `{team1}` vs `{team2}`:\n"
-            f"🏠 {team1} Win: `{data['Home Win Probability']}%`\n"
+            f"📊 **EdgePlay AI Prediction** for `{team1.title()}` vs `{team2.title()}`:\n"
+            f"🏠 {team1.title()} Win: `{data['Home Win Probability']}%`\n"
             f"🤝 Draw: `{data['Draw Probability']}%`\n"
-            f"🚀 {team2} Win: `{data['Away Win Probability']}%`"
+            f"🚀 {team2.title()} Win: `{data['Away Win Probability']}%`"
         )
 
     except Exception as e:
