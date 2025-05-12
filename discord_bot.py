@@ -4,12 +4,12 @@ from discord.ext import commands
 import requests
 import logging
 
-# ✅ Logging config (this will show in Render logs)
+# ✅ Logging config
 logging.basicConfig(level=logging.INFO)
 
-# ✅ Hardcode your API key here (replace with your actual key)
+# ✅ Use your actual API key here (can switch back to env later)
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-ODDS_API_KEY = "98bd0e4fb6c1fc1647c66e7b1c3bc083"  # 🔁 Replace this temporarily
+ODDS_API_KEY = "your_real_api_key_here"  # Replace with your valid key
 FASTAPI_URL = "https://edgeplay-ai.onrender.com/predict"
 
 # ✅ Discord bot setup
@@ -21,7 +21,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     logging.info(f"✅ Bot is online as {bot.user}")
 
-# ✅ Match odds fetching
+# ✅ Match odds fetcher
 def fetch_match_odds(team1, team2):
     url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=us&markets=h2h&apiKey={ODDS_API_KEY}"
     try:
@@ -30,24 +30,26 @@ def fetch_match_odds(team1, team2):
         data = res.json()
 
         for match in data:
-            teams = match.get("teams", [])
-            lower_teams = [t.lower() for t in teams]
+            home = match.get("home_team", "").lower()
+            away = match.get("away_team", "").lower()
 
-            if any(team1.lower() in t for t in lower_teams) and any(team2.lower() in t for t in lower_teams):
+            if team1.lower() in home and team2.lower() in away or \
+               team1.lower() in away and team2.lower() in home:
+
                 outcomes = match["bookmakers"][0]["markets"][0]["outcomes"]
                 odds_dict = {o["name"].lower(): o["price"] for o in outcomes}
 
                 return [
-                    odds_dict.get(teams[0].lower()),
+                    odds_dict.get(home),
                     odds_dict.get("draw"),
-                    odds_dict.get(teams[1].lower())
+                    odds_dict.get(away)
                 ]
     except Exception as e:
         logging.error(f"❌ Error fetching odds: {e}")
 
     return None
 
-# ✅ !predict command
+# ✅ Predict command
 @bot.command()
 async def predict(ctx, team1: str, team2: str):
     odds = fetch_match_odds(team1, team2)
@@ -79,7 +81,7 @@ async def predict(ctx, team1: str, team2: str):
         await ctx.send(f"❌ Prediction error: {e}")
         logging.error(f"❌ Prediction error: {e}")
 
-# ✅ !upcoming command with logging
+# ✅ Upcoming command (fixed)
 @bot.command()
 async def upcoming(ctx):
     logging.info("📢 !upcoming command triggered")
@@ -106,7 +108,8 @@ async def upcoming(ctx):
 
         message = "**🗓 Upcoming EPL Matches:**\n"
         for match in data[:10]:
-            home, away = match["teams"]
+            home = match["home_team"]
+            away = match["away_team"]
             message += f"- {home} vs {away}\n"
 
         await ctx.send(message)
@@ -116,10 +119,10 @@ async def upcoming(ctx):
         logging.error(f"❌ Exception in upcoming command: {e}")
         await ctx.send("⚠️ Exception occurred when fetching match list.")
 
-# ✅ !ping test command
+# ✅ Ping command
 @bot.command()
 async def ping(ctx):
     await ctx.send("✅ Bot is alive.")
 
-# ✅ Run the bot
+# ✅ Launch bot
 bot.run(BOT_TOKEN)
