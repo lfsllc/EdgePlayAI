@@ -7,10 +7,9 @@ import logging
 # ✅ Logging config
 logging.basicConfig(level=logging.INFO)
 
-# ✅ Use your actual API key here (can switch back to env later)
+# ✅ Use your real API key here
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-ODDS_API_KEY = "e30a14f36b81cb121cc46c4fdf5adf47"
-
+ODDS_API_KEY = os.getenv("ODDS_API_KEY")
 FASTAPI_URL = "https://edgeplay-ai.onrender.com/predict"
 
 # ✅ Discord bot setup
@@ -50,7 +49,7 @@ def fetch_match_odds(team1, team2):
 
     return None
 
-# ✅ Predict command
+# ✅ Predict command using 'vs' format
 @bot.command()
 async def predict(ctx, *, message: str):
     logging.info(f"📥 Raw predict input: {message}")
@@ -92,16 +91,17 @@ async def predict(ctx, *, message: str):
             f"🤝 Draw: `{data['Draw Probability']}%`\n"
             f"🚀 {team2.title()} Win: `{data['Away Win Probability']}%`"
         )
+        return  # ✅ Prevents extra error output
 
     except Exception as e:
         await ctx.send(f"❌ Prediction error: {e}")
         logging.error(f"❌ Prediction error: {e}")
 
-# ✅ Upcoming command (fixed)
+# ✅ Upcoming matches listing
 @bot.command()
 async def upcoming(ctx):
     logging.info("📢 !upcoming command triggered")
-    logging.info("🧪 Using hardcoded key: e30a14f36b81cb121cc46c4fdf5adf47")
+    logging.info(f"🧪 Using hardcoded key: {ODDS_API_KEY}")
 
     url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=us&markets=h2h&apiKey={ODDS_API_KEY}"
     try:
