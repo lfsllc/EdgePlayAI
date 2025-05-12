@@ -85,7 +85,7 @@ async def predict(ctx, team1: str, team2: str):
 @bot.command()
 async def upcoming(ctx):
     logging.info("📢 !upcoming command triggered")
-    logging.info(f"🧪 Using hardcoded key: {ODDS_API_KEY}")
+    logging.info(f"🧪 Using hardcoded key: {e30a14f36b81cb121cc46c4fdf5adf47}")
 
     url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=us&markets=h2h&apiKey={ODDS_API_KEY}"
     try:
