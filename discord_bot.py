@@ -73,8 +73,10 @@ async def predict(ctx, team1: str, team2: str):
 @bot.command()
 async def upcoming(ctx):
     print("📢 !upcoming command triggered")
+    print(f"🧪 ODDS_API_KEY is: {ODDS_API_KEY}")  # <== ADD THIS
 
     url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=us&markets=h2h&apiKey={ODDS_API_KEY}"
+    ...
     try:
         print(f"🔍 Sending request to: {url}")
         res = requests.get(url)
