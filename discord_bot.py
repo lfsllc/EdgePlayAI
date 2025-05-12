@@ -8,17 +8,17 @@ BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 ODDS_API_KEY = os.getenv("ODDS_API_KEY")
 FASTAPI_URL = "https://edgeplay-ai.onrender.com/predict"
 
-# ✅ Discord setup
+# ✅ Set up bot with necessary intents
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ✅ When bot goes live
+# ✅ Notify when bot is live
 @bot.event
 async def on_ready():
     print(f"✅ Bot is online as {bot.user}")
 
-# ✅ Odds fetcher with flexible name matching
+# ✅ Fetch EPL match odds using team names
 def fetch_match_odds(team1, team2):
     url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=eu&markets=h2h&apiKey={ODDS_API_KEY}"
     try:
@@ -44,7 +44,7 @@ def fetch_match_odds(team1, team2):
 
     return None
 
-# ✅ Predict match outcome
+# ✅ Predict command
 @bot.command()
 async def predict(ctx, team1: str, team2: str):
     odds = fetch_match_odds(team1, team2)
@@ -75,21 +75,26 @@ async def predict(ctx, team1: str, team2: str):
     except Exception as e:
         await ctx.send(f"❌ Prediction error: {e}")
 
-# ✅ List upcoming matches for reference
+# ✅ List upcoming matches (with logging if error)
 @bot.command()
 async def upcoming(ctx):
     url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=eu&markets=h2h&apiKey={ODDS_API_KEY}"
     try:
         res = requests.get(url)
-        res.raise_for_status()
-        data = res.json()
 
+        if res.status_code != 200:
+            print(f"❌ Response status code: {res.status_code}")
+            print(f"❌ Response text: {res.text}")
+            await ctx.send("⚠️ Failed to fetch match list. Check logs for details.")
+            return
+
+        data = res.json()
         if not data:
             await ctx.send("❌ No upcoming EPL matches found.")
             return
 
         message = "**🗓 Upcoming EPL Matches:**\n"
-        for match in data[:10]:  # Show top 10 matches
+        for match in data[:10]:
             home, away = match["teams"]
             message += f"- {home} vs {away}\n"
 
@@ -99,10 +104,11 @@ async def upcoming(ctx):
         print("❌ Error listing matches:", e)
         await ctx.send("⚠️ Failed to fetch match list.")
 
-# ✅ Basic ping command
+# ✅ Quick health check
 @bot.command()
 async def ping(ctx):
     await ctx.send("✅ Bot is alive.")
 
 # ✅ Launch bot
 bot.run(BOT_TOKEN)
+
