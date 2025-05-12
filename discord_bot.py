@@ -1,17 +1,19 @@
+import os
 import discord
 from discord.ext import commands
 import requests
 
-# Your FastAPI server endpoint
-FASTAPI_URL = "http://localhost:8000/predict"
+# ✅ Load token from environment variable
+BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-# Your actual bot token
-BOT_TOKEN = "MTM3MDA1OTczODcyOTE1NjczMA.GNkX57.Dc0zO7VZ5LzgGDXHO5iCEz4F4IvopcsMd9gEhs"
+# ✅ Your FastAPI endpoint on Render
+FASTAPI_URL = "https://edgeplay-ai.onrender.com/predict"
 
-# Bot setup
+# ✅ Enable message content (needed for reading commands)
 intents = discord.Intents.default()
 intents.message_content = True
 
+# ✅ Set up command prefix
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
@@ -21,26 +23,33 @@ async def on_ready():
 @bot.command()
 async def predict(ctx, odds_home: float, odds_draw: float, odds_away: float):
     try:
-        payload = {
+        # Send request to your FastAPI
+        response = requests.post(FASTAPI_URL, json={
             "odds_home": odds_home,
             "odds_draw": odds_draw,
             "odds_away": odds_away
-        }
+        })
 
-        res = requests.post(FASTAPI_URL, json=payload)
-        data = res.json()
+        if response.status_code != 200:
+            await ctx.send("⚠️ API error. Please try again later.")
+            return
 
-        message = (
-            f"🏟 **Match Prediction**\n"
-            f"Home Win: {data['Home Win Probability']}%\n"
-            f"Draw: {data['Draw Probability']}%\n"
-            f"Away Win: {data['Away Win Probability']}%"
-        )
+        data = response.json()
 
-        await ctx.send(message)
+        # Check if expected keys are present
+        if all(k in data for k in ["Home Win Probability", "Draw Probability", "Away Win Probability"]):
+            await ctx.send(
+                f"📊 **EdgePlay AI Prediction**\n"
+                f"🏠 Home Win: `{data['Home Win Probability']}%`\n"
+                f"🤝 Draw: `{data['Draw Probability']}%`\n"
+                f"🚀 Away Win: `{data['Away Win Probability']}%`"
+            )
+        else:
+            await ctx.send("⚠️ Unexpected response from API.")
 
     except Exception as e:
-        print("❌ ERROR:", e)
-        await ctx.send("⚠️ Something went wrong trying to fetch the prediction.")
+        await ctx.send(f"❌ Error: {e}")
 
+# ✅ Start the bot
 bot.run(BOT_TOKEN)
+
