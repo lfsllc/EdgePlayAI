@@ -4,7 +4,7 @@ from discord.ext import commands
 import requests
 
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-ODDS_API_KEY = os.getenv("ODDS_API_KEY")
+ODDS_API_KEY = os.getenv("98bd0e4fb6c1fc1647c66e7b1c3bc083")
 FASTAPI_URL = "https://edgeplay-ai.onrender.com/predict"
 
 intents = discord.Intents.default()
