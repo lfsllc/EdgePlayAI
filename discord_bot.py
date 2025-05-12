@@ -9,7 +9,8 @@ logging.basicConfig(level=logging.INFO)
 
 # ✅ Use your actual API key here (can switch back to env later)
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-ODDS_API_KEY = "your_real_api_key_here"  # Replace with your valid key
+ODDS_API_KEY = "e30a14f36b81cb121cc46c4fdf5adf47"
+
 FASTAPI_URL = "https://edgeplay-ai.onrender.com/predict"
 
 # ✅ Discord bot setup
@@ -85,7 +86,7 @@ async def predict(ctx, team1: str, team2: str):
 @bot.command()
 async def upcoming(ctx):
     logging.info("📢 !upcoming command triggered")
-    logging.info(f"🧪 Using hardcoded key: {e30a14f36b81cb121cc46c4fdf5adf47}")
+    logging.info("🧪 Using hardcoded key: e30a14f36b81cb121cc46c4fdf5adf47")
 
     url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=us&markets=h2h&apiKey={ODDS_API_KEY}"
     try:
