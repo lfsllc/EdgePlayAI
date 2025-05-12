@@ -5,20 +5,24 @@ import numpy as np
 import os
 import traceback
 
-# ✅ Initialize FastAPI app
 app = FastAPI()
 
-# ✅ Load the trained model
+# ✅ Root homepage route
+@app.get("/")
+def root():
+    return {"message": "Welcome to EdgePlay AI ⚽"}
+
+# ✅ Load model
 model_path = "models/match_outcome_model.pkl"
 model = joblib.load(model_path) if os.path.exists(model_path) else None
 
-# ✅ Define the input schema
+# ✅ Define input structure
 class OddsInput(BaseModel):
     odds_home: float
     odds_draw: float
     odds_away: float
 
-# ✅ Define the prediction route
+# ✅ Prediction route
 @app.post("/predict")
 def predict_odds(data: OddsInput):
     try:
