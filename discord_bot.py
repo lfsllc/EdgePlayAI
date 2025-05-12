@@ -8,19 +8,19 @@ BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 ODDS_API_KEY = os.getenv("ODDS_API_KEY")
 FASTAPI_URL = "https://edgeplay-ai.onrender.com/predict"
 
-# ✅ Configure bot
+# ✅ Set up Discord bot
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ✅ On bot ready
+# ✅ On bot start
 @bot.event
 async def on_ready():
     print(f"✅ Bot is online as {bot.user}")
 
-# ✅ Match odds fetcher
+# ✅ Fetch match odds from working region
 def fetch_match_odds(team1, team2):
-    url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=eu&markets=h2h&apiKey={ODDS_API_KEY}"
+    url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=us&markets=h2h&apiKey={ODDS_API_KEY}"
     try:
         res = requests.get(url)
         res.raise_for_status()
@@ -75,16 +75,16 @@ async def predict(ctx, team1: str, team2: str):
     except Exception as e:
         await ctx.send(f"❌ Prediction error: {e}")
 
-# ✅ Debugging-enhanced upcoming match listing
+# ✅ Upcoming matches listing
 @bot.command()
 async def upcoming(ctx):
-    url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=eu&markets=h2h&apiKey={ODDS_API_KEY}"
+    url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=us&markets=h2h&apiKey={ODDS_API_KEY}"
     try:
-        print(f"🔍 Sending request to: {url}")
+        print(f"🔍 Fetching from: {url}")
         res = requests.get(url)
 
         print(f"🔁 Status code: {res.status_code}")
-        print(f"📄 Response: {res.text[:300]}")  # Log first part of response for debugging
+        print(f"📄 Response preview: {res.text[:300]}")
 
         if res.status_code != 200:
             await ctx.send("⚠️ Failed to fetch match list. Check logs for details.")
@@ -95,6 +95,8 @@ async def upcoming(ctx):
             await ctx.send("❌ No upcoming EPL matches found.")
             return
 
+        print("✅ Successfully fetched upcoming matches.")
+
         message = "**🗓 Upcoming EPL Matches:**\n"
         for match in data[:10]:
             home, away = match["teams"]
@@ -103,13 +105,13 @@ async def upcoming(ctx):
         await ctx.send(message)
 
     except Exception as e:
-        print("❌ Exception during !upcoming:", e)
+        print("❌ Exception in upcoming command:", e)
         await ctx.send("⚠️ Exception occurred when fetching match list.")
 
-# ✅ Health check
+# ✅ Ping command
 @bot.command()
 async def ping(ctx):
     await ctx.send("✅ Bot is alive.")
 
-# ✅ Launch bot
+# ✅ Start the bot
 bot.run(BOT_TOKEN)
