@@ -11,6 +11,10 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+@bot.command()
+async def ping(ctx):
+    await ctx.send("✅ Bot is alive.")
+
 @bot.event
 async def on_ready():
     print(f"✅ Bot is online as {bot.user}")
