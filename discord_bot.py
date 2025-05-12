@@ -3,22 +3,22 @@ import discord
 from discord.ext import commands
 import requests
 
+# ✅ Load tokens & URLs
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 ODDS_API_KEY = os.getenv("ODDS_API_KEY")
 FASTAPI_URL = "https://edgeplay-ai.onrender.com/predict"
 
+# ✅ Set intents and command prefix
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-@bot.command()
-async def ping(ctx):
-    await ctx.send("✅ Bot is alive.")
-
+# ✅ Notify when bot is online
 @bot.event
 async def on_ready():
     print(f"✅ Bot is online as {bot.user}")
 
+# ✅ Fetch match odds from The Odds API
 def fetch_match_odds(team1, team2):
     url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?regions=eu&markets=h2h&apiKey={ODDS_API_KEY}"
 
@@ -43,6 +43,7 @@ def fetch_match_odds(team1, team2):
 
     return None
 
+# ✅ Predict command: now takes team names instead of raw odds
 @bot.command()
 async def predict(ctx, team1: str, team2: str):
     odds = fetch_match_odds(team1, team2)
@@ -74,3 +75,10 @@ async def predict(ctx, team1: str, team2: str):
     except Exception as e:
         await ctx.send(f"❌ Prediction error: {e}")
 
+# ✅ Optional test command
+@bot.command()
+async def ping(ctx):
+    await ctx.send("✅ Bot is alive.")
+
+# ✅ Start bot
+bot.run(BOT_TOKEN)
