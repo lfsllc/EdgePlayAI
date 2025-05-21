@@ -3,7 +3,4 @@ pandas
 scikit-learn
 xgboost
 joblib
-fastapi
-uvicorn
-soccerdata
 requests
