@@ -1,8 +1,9 @@
-fastapi
-uvicorn
+discord.py==2.3.2
 pandas
-requests
 scikit-learn
 xgboost
 joblib
-discord.py==2.3.2
+fastapi
+uvicorn
+soccerdata
+requests
