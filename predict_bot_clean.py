@@ -11,8 +11,13 @@ from predict_match import predict_match
 load_dotenv()
 
 # === Load model and match data ===
-model = joblib.load("model.pkl")
-match_data = pd.read_csv("data/historical_matches_fully_enhanced.csv")
+try:
+    model = joblib.load("model.pkl")
+    match_data = pd.read_csv("data/historical_matches_fully_enhanced.csv")
+except Exception as e:
+    print(f"❌ Failed to load model or dataset: {e}")
+    model = None
+    match_data = None
 
 # === Initialize bot ===
 intents = discord.Intents.default()
@@ -25,7 +30,14 @@ tree = bot.tree
 async def predict(interaction: discord.Interaction, match: str):
     await interaction.response.defer()
     try:
+        print(f"🔍 User input: {match}")
         home, away = [team.strip() for team in match.split("vs")]
+        print(f"🏟 Parsed teams: {home} vs {away}")
+
+        if model is None or match_data is None:
+            await interaction.followup.send("⚠️ Model or data not loaded on server.")
+            return
+
         prediction = predict_match(home, away, model, match_data)
 
         if prediction is None:
@@ -42,7 +54,7 @@ async def predict(interaction: discord.Interaction, match: str):
 
     except Exception as e:
         await interaction.followup.send("⚠️ Internal error. Please try again later.")
-        print(f"Error: {e}")
+        print(f"❌ Predict command error: {e}")
 
 # === On ready ===
 @bot.event
@@ -59,4 +71,4 @@ token = os.getenv("DISCORD_TOKEN")
 if not token:
     print("❌ DISCORD_TOKEN not found in environment or .env file")
 else:
-    bot.run(token)
+    bot.run(MTM3MDA1OTczODcyOTE1NjczMA.GmYqOc.fIF1kPiFuEAwJ0fMyxB1OmdWFrcZIWaCgrtAgM)
