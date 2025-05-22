@@ -231,12 +231,15 @@ async def upcoming(interaction: discord.Interaction):
 
 @bot.event
 async def on_ready():
-    print(f"✅ Logged in as {bot.user}")
     try:
+        print(f"✅ Logged in as {bot.user}")
         synced = await tree.sync()
-        print(f"🔁 Synced {len(synced)} command(s)")
+        print(f"🔁 Synced {len(synced)} command(s): {[cmd.name for cmd in synced]}")
     except Exception as e:
         print(f"❌ Failed to sync commands: {e}")
+        import traceback
+        traceback.print_exc()
+
 
 # === Run bot with token ===
 token = os.getenv("DISCORD_TOKEN")
