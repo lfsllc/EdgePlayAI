@@ -7,6 +7,8 @@ import joblib
 from dotenv import load_dotenv
 import json
 import time
+import requests
+from datetime import datetime
 
 # === Load environment variables ===
 load_dotenv()
@@ -149,7 +151,7 @@ async def predict(interaction: discord.Interaction, match: str):
                 f"Try using the exact team names as they appear in the dataset. For example:\n"
                 f"- Use `Man United` instead of `Manchester United`\n"
                 f"- Use `Man City` instead of `Manchester City`\n"
-                f"- Use `Ath Madrid` instead of `Atletico Madrid`\n"
+                f"- Use `Atletico Madrid` instead of `Atletico de Madrid`\n"
                 f"- Use `Milan` instead of `AC Milan`\n\n"
                 f"Use the `/teams` command to see all available teams."
             )
@@ -188,6 +190,42 @@ async def teams(interaction: discord.Interaction):
     except Exception as e:
         await interaction.followup.send("⚠️ Internal error. Please try again later.")
         print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+
+@tree.command(name="upcoming", description="Show upcoming matches with date and time")
+async def upcoming(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True)
+    try:
+        api_key = os.getenv("FOOTBALL_DATA_API_KEY")
+        headers = {'X-Auth-Token': api_key}
+        url = 'https://api.football-data.org/v2/matches?status=SCHEDULED'
+
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            await interaction.followup.send("⚠️ Could not fetch upcoming fixtures.")
+            return
+
+        data = response.json()
+        matches = data.get("matches", [])
+
+        if not matches:
+            await interaction.followup.send("⚠️ No upcoming matches found.")
+            return
+
+        message_lines = ["📅 **Upcoming Matches:**"]
+        for match in matches[:10]:
+            utc_time = datetime.strptime(match["utcDate"], "%Y-%m-%dT%H:%M:%SZ")
+            formatted_time = utc_time.strftime("%Y-%m-%d %H:%M UTC")
+            home = match["homeTeam"]["name"]
+            away = match["awayTeam"]["name"]
+            message_lines.append(f"{formatted_time} — {home} vs {away}")
+
+        await interaction.followup.send("\n".join(message_lines))
+
+    except Exception as e:
+        await interaction.followup.send("⚠️ Failed to load fixtures.")
+        print(f"Error fetching fixtures: {e}")
         import traceback
         traceback.print_exc()
 
