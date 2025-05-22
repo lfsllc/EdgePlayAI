@@ -110,7 +110,7 @@ async def upcoming(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
     api_key = os.getenv("FOOTBALL_DATA_API_KEY")
     headers = {'X-Auth-Token': api_key}
-    url = 'https://api.football-data.org/v2/competitions/PL/matches?status=SCHEDULED'
+    url = url = 'https://api.football-data.org/v4/competitions/PL/matches?status=SCHEDULED'
 
     try:
         response = requests.get(url, headers=headers)
