@@ -28,7 +28,6 @@ tree = bot.tree
 @tree.command(name="predict", description="Predict the outcome of a match")
 @app_commands.describe(match="Enter match like: Arsenal vs Bournemouth")
 async def predict(interaction: discord.Interaction, match: str):
-    await interaction.response.defer()
     try:
         print(f"🔍 User input: {match}")
         home, away = [team.strip() for team in match.split("vs")]
@@ -71,4 +70,4 @@ token = os.getenv("DISCORD_TOKEN")
 if not token:
     print("❌ DISCORD_TOKEN not found in environment or .env file")
 else:
-    bot.run(MTM3MDA1OTczODcyOTE1NjczMA.GmYqOc.fIF1kPiFuEAwJ0fMyxB1OmdWFrcZIWaCgrtAgM)
+    bot.run(token)
