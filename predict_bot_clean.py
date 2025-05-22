@@ -132,13 +132,17 @@ async def upcoming(interaction: discord.Interaction):
         await interaction.followup.send("⚠️ Error fetching upcoming matches.")
 
 @bot.event
+@bot.event
 async def on_ready():
     logger.info(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
     try:
-        synced = await tree.sync()
-        logger.info(f"🔁 Synced {len(synced)} command(s): {[cmd.name for cmd in synced]}")
+        # Replace with your actual server ID
+        GUILD_ID = 1212123642465353728
+        synced = await tree.sync(guild=discord.Object(id=GUILD_ID))
+        logger.info(f"🔁 Force-synced {len(synced)} commands for guild {GUILD_ID}")
     except Exception as e:
         logger.error("❌ Failed to sync commands", exc_info=True)
+
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
