@@ -171,7 +171,7 @@ async def predict(interaction: discord.Interaction, match: str):
             
             # Provide helpful error message with suggestions
             await interaction.followup.send(
-                f"⚠️ Match not found in dataset. Could not find teams: {home_normalized} vs {away_normalized}
+               print(f"⚠️ Match not found in dataset. Could not find teams: {home_team} vs {away_team}")
 
 "
                 f"Try using the exact team names as they appear in the dataset. For example:
