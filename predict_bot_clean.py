@@ -105,21 +105,24 @@ async def teams(interaction: discord.Interaction):
     for i, chunk in enumerate(chunks):
         await interaction.followup.send(f"**Teams {i+1}:**\n" + "\n".join(chunk))
 
-@tree.command(name="upcoming", description="Show upcoming matches with date and time")
+@tree.command(name="upcoming", description="Show upcoming Premier League matches with date and time")
 async def upcoming(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
     api_key = os.getenv("FOOTBALL_DATA_API_KEY")
     headers = {'X-Auth-Token': api_key}
-    url = 'https://api.football-data.org/v2/matches?status=SCHEDULED'
+    url = 'https://api.football-data.org/v2/competitions/PL/matches?status=SCHEDULED'
 
     try:
         response = requests.get(url, headers=headers)
         data = response.json()
         matches = data.get("matches", [])
+        logger.info(f"Fetched {len(matches)} upcoming matches.")
+
         if not matches:
-            await interaction.followup.send("⚠️ No upcoming matches found.")
+            await interaction.followup.send("⚠️ No upcoming Premier League matches found.")
             return
-        msg_lines = ["📅 **Upcoming Matches:**"]
+
+        msg_lines = ["📅 **Upcoming Premier League Matches:**"]
         for match in matches[:10]:
             dt = datetime.strptime(match['utcDate'], "%Y-%m-%dT%H:%M:%SZ")
             msg_lines.append(f"{dt.strftime('%Y-%m-%d %H:%M UTC')} — {match['homeTeam']['name']} vs {match['awayTeam']['name']}")
