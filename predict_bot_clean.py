@@ -33,6 +33,44 @@ def normalize_team_name(team_name):
     logger.info(f"Normalized: '{team_name}' → '{normalized}'")
     return normalized
 
+def fetch_live_odds(home_team, away_team):
+    try:
+        api_key = os.getenv("c5f2b6a97f2600608383ebfb3acbd9b3")
+        if not api_key:
+            logger.warning("⚠️ THEODDS_API_KEY not set in environment")
+            return None, None
+
+        leagues = ["soccer_epl", "soccer_spain_la_liga", "soccer_italy_serie_a",
+                   "soccer_germany_bundesliga", "soccer_france_ligue_one"]
+        headers = {"X-Auth-Token": api_key}
+
+        for league in leagues:
+            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds"
+            params = {
+                "apiKey": api_key,
+                "regions": "uk",
+                "markets": "h2h",
+                "oddsFormat": "decimal"
+            }
+            res = requests.get(url, params=params)
+            if res.status_code != 200:
+                continue
+
+            data = res.json()
+            for match in data:
+                if (home_team.lower() in match['home_team'].lower() and
+                        away_team.lower() in match['away_team'].lower()):
+                    try:
+                        book = match["bookmakers"][0]
+                        outcomes = book["markets"][0]["outcomes"]
+                        return outcomes[0]["price"], outcomes[1]["price"]
+                    except:
+                        continue
+        return None, None
+    except Exception as e:
+        logger.error("Failed to fetch odds", exc_info=True)
+        return None, None
+
 def engineer_features(home_team, away_team):
     try:
         home = elo_ratings[elo_ratings["Club"] == home_team]
@@ -49,12 +87,21 @@ def engineer_features(home_team, away_team):
 
         logger.info(f"ELO: {home_team} = {home_elo}, {away_team} = {away_elo}, diff = {home_elo - away_elo}")
 
+        home_odds, away_odds = fetch_live_odds(home_team, away_team)
+        if home_odds is None or away_odds is None:
+            logger.warning("⚠️ Odds not found. Defaulting to 0s.")
+            home_odds, away_odds = 0.0, 0.0
+
+        odds_diff = home_odds - away_odds if home_odds and away_odds else 0.0
+        implied_prob_home = 1 / home_odds if home_odds else 0.0
+
         features = {
             "elo_diff": home_elo - away_elo,
             "form_diff": 0, "goal_diff": 0, "rank_diff": away_rank - home_rank,
             "momentum_diff": 0, "home_away_split_diff": 0, "h2h_home_wins_last3": 0,
             "h2h_away_wins_last3": 0, "h2h_goal_diff_last3": 0, "draw_rate_last5": 0,
-            "avg_goal_diff_last5": 0, "days_since_last_match": 3, "fixture_density_flag": 0
+            "avg_goal_diff_last5": 0, "days_since_last_match": 3, "fixture_density_flag": 0,
+            "odds_diff": odds_diff, "implied_prob_home": implied_prob_home
         }
         return pd.DataFrame([features])
     except Exception as e:
@@ -106,40 +153,6 @@ async def predict(interaction: discord.Interaction, match: str):
         f"🚀 {prediction['away_team']} Win: {prediction['away_win']}%"
     )
     await interaction.followup.send(msg)
-
-@tree.command(name="teams", description="Show available teams for prediction")
-async def teams(interaction: discord.Interaction):
-    await interaction.response.defer(thinking=True)
-    team_list = sorted(elo_ratings['Club'].unique())
-    chunks = [team_list[i:i+20] for i in range(0, len(team_list), 20)]
-    for i, chunk in enumerate(chunks):
-        await interaction.followup.send(f"**Teams {i+1}:**\n" + "\n".join(chunk))
-
-@tree.command(name="upcoming", description="Show upcoming Premier League matches with date and time")
-async def upcoming(interaction: discord.Interaction):
-    await interaction.response.defer(thinking=True)
-    api_key = os.getenv("FOOTBALL_DATA_API_KEY")
-    headers = {'X-Auth-Token': api_key}
-    url = 'https://api.football-data.org/v4/competitions/PL/matches?status=SCHEDULED'
-
-    try:
-        response = requests.get(url, headers=headers)
-        data = response.json()
-        matches = data.get("matches", [])
-        logger.info(f"Fetched {len(matches)} upcoming matches.")
-
-        if not matches:
-            await interaction.followup.send("⚠️ No upcoming Premier League matches found.")
-            return
-
-        msg_lines = ["📅 **Upcoming Premier League Matches:**"]
-        for match in matches[:10]:
-            dt = datetime.strptime(match['utcDate'], "%Y-%m-%dT%H:%M:%SZ")
-            msg_lines.append(f"{dt.strftime('%Y-%m-%d %H:%M UTC')} — {match['homeTeam']['name']} vs {match['awayTeam']['name']}")
-        await interaction.followup.send("\n".join(msg_lines))
-    except Exception as e:
-        logger.error("Failed to fetch upcoming matches", exc_info=True)
-        await interaction.followup.send("⚠️ Error fetching upcoming matches.")
 
 @bot.event
 async def on_ready():
