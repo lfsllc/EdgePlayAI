@@ -154,6 +154,40 @@ async def predict(interaction: discord.Interaction, match: str):
     )
     await interaction.followup.send(msg)
 
+@tree.command(name="teams", description="Show available teams for prediction")
+async def teams(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True)
+    team_list = sorted(elo_ratings['Club'].unique())
+    chunks = [team_list[i:i+20] for i in range(0, len(team_list), 20)]
+    for i, chunk in enumerate(chunks):
+        await interaction.followup.send(f"**Teams {i+1}:**\n" + "\n".join(chunk))
+
+@tree.command(name="upcoming", description="Show upcoming Premier League matches with date and time")
+async def upcoming(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True)
+    api_key = os.getenv("FOOTBALL_DATA_API_KEY")
+    headers = {'X-Auth-Token': api_key}
+    url = 'https://api.football-data.org/v4/competitions/PL/matches?status=SCHEDULED'
+
+    try:
+        response = requests.get(url, headers=headers)
+        data = response.json()
+        matches = data.get("matches", [])
+        logger.info(f"Fetched {len(matches)} upcoming matches.")
+
+        if not matches:
+            await interaction.followup.send("⚠️ No upcoming Premier League matches found.")
+            return
+
+        msg_lines = ["📅 **Upcoming Premier League Matches:**"]
+        for match in matches[:10]:
+            dt = datetime.strptime(match['utcDate'], "%Y-%m-%dT%H:%M:%SZ")
+            msg_lines.append(f"{dt.strftime('%Y-%m-%d %H:%M UTC')} — {match['homeTeam']['name']} vs {match['awayTeam']['name']}")
+        await interaction.followup.send("\n".join(msg_lines))
+    except Exception as e:
+        logger.error("Failed to fetch upcoming matches", exc_info=True)
+        await interaction.followup.send("⚠️ Error fetching upcoming matches.")
+
 @bot.event
 async def on_ready():
     logger.info(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
