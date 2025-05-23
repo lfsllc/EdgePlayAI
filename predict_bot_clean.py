@@ -29,19 +29,29 @@ with open("data/club_name_mapping.json", "r", encoding="utf-8") as f:
 logger.info("✅ Resources loaded successfully")
 
 def normalize_team_name(team_name):
-    return team_aliases.get(team_name.strip().lower(), team_name.strip())
+    normalized = team_aliases.get(team_name.strip().lower(), team_name.strip())
+    logger.info(f"Normalized: '{team_name}' → '{normalized}'")
+    return normalized
 
 def engineer_features(home_team, away_team):
     try:
         home = elo_ratings[elo_ratings["Club"] == home_team]
         away = elo_ratings[elo_ratings["Club"] == away_team]
+
         if home.empty or away.empty:
             logger.warning(f"Missing teams: {home_team} or {away_team}")
             return None
 
+        home_elo = home["Elo"].values[0]
+        away_elo = away["Elo"].values[0]
+        home_rank = home["Rank"].values[0]
+        away_rank = away["Rank"].values[0]
+
+        logger.info(f"ELO: {home_team} = {home_elo}, {away_team} = {away_elo}, diff = {home_elo - away_elo}")
+
         features = {
-            "elo_diff": home["Elo"].values[0] - away["Elo"].values[0],
-            "form_diff": 0, "goal_diff": 0, "rank_diff": away["Rank"].values[0] - home["Rank"].values[0],
+            "elo_diff": home_elo - away_elo,
+            "form_diff": 0, "goal_diff": 0, "rank_diff": away_rank - home_rank,
             "momentum_diff": 0, "home_away_split_diff": 0, "h2h_home_wins_last3": 0,
             "h2h_away_wins_last3": 0, "h2h_goal_diff_last3": 0, "draw_rate_last5": 0,
             "avg_goal_diff_last5": 0, "days_since_last_match": 3, "fixture_density_flag": 0
@@ -110,7 +120,7 @@ async def upcoming(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
     api_key = os.getenv("FOOTBALL_DATA_API_KEY")
     headers = {'X-Auth-Token': api_key}
-    url = url = 'https://api.football-data.org/v4/competitions/PL/matches?status=SCHEDULED'
+    url = 'https://api.football-data.org/v4/competitions/PL/matches?status=SCHEDULED'
 
     try:
         response = requests.get(url, headers=headers)
@@ -132,17 +142,13 @@ async def upcoming(interaction: discord.Interaction):
         await interaction.followup.send("⚠️ Error fetching upcoming matches.")
 
 @bot.event
-@bot.event
 async def on_ready():
     logger.info(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
     try:
-        # Replace with your actual server ID
-        GUILD_ID = 1212123642465353728
-        synced = await tree.sync(guild=discord.Object(id=GUILD_ID))
-        logger.info(f"🔁 Force-synced {len(synced)} commands for guild {GUILD_ID}")
+        synced = await tree.sync()
+        logger.info(f"🔁 Synced {len(synced)} command(s): {[cmd.name for cmd in synced]}")
     except Exception as e:
         logger.error("❌ Failed to sync commands", exc_info=True)
-
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
