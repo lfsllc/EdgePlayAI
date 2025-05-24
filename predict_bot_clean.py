@@ -10,6 +10,7 @@ import time
 import requests
 from datetime import datetime
 import logging
+import re
 
 load_dotenv()
 
@@ -29,13 +30,14 @@ with open("data/club_name_mapping.json", "r", encoding="utf-8") as f:
 logger.info("✅ Resources loaded successfully")
 
 def normalize_team_name(team_name):
-    normalized = team_aliases.get(team_name.strip().lower(), team_name.strip())
+    clean_name = re.sub(r"\s+fc$", "", team_name.strip(), flags=re.IGNORECASE)
+    normalized = team_aliases.get(clean_name.lower(), clean_name)
     logger.info(f"Normalized: '{team_name}' → '{normalized}'")
     return normalized
 
 def fetch_live_odds(home_team, away_team):
     try:
-        api_key = os.getenv("c5f2b6a97f2600608383ebfb3acbd9b3")
+        api_key = os.getenv("THEODDS_API_KEY")
         if not api_key:
             logger.warning("⚠️ THEODDS_API_KEY not set in environment")
             return None, None
