@@ -37,7 +37,7 @@ def normalize_team_name(team_name):
 
 def fetch_live_odds(home_team, away_team):
     try:
-        api_key = os.getenv("c5f2b6a97f2600608383ebfb3acbd9b3")
+        api_key = os.getenv("a5aa52321225437e9b6e9508040eeb33")
         if not api_key:
             logger.warning("⚠️ THEODDS_API_KEY not set in environment")
             return None, None
@@ -134,8 +134,7 @@ async def predict(interaction: discord.Interaction, match: str):
     try:
         home, away = [team.strip() for team in match.split("vs")]
     except ValueError:
-        await interaction.response.send_message("⚠️ Invalid format. Please use: Team1 vs Team2")
-        return
+        await interaction.followup.send(...)
 
     prediction = predict_match(home, away)
     if prediction is None:
