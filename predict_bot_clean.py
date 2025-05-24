@@ -37,14 +37,13 @@ def normalize_team_name(team_name):
 
 def fetch_live_odds(home_team, away_team):
     try:
-        api_key = os.getenv("THEODDS_API_KEY")
+        api_key = os.getenv("c5f2b6a97f2600608383ebfb3acbd9b3")
         if not api_key:
             logger.warning("⚠️ THEODDS_API_KEY not set in environment")
             return None, None
 
         leagues = ["soccer_epl", "soccer_spain_la_liga", "soccer_italy_serie_a",
                    "soccer_germany_bundesliga", "soccer_france_ligue_one"]
-        headers = {"X-Auth-Token": api_key}
 
         for league in leagues:
             url = f"https://api.the-odds-api.com/v4/sports/{league}/odds"
@@ -132,19 +131,17 @@ def predict_match(home_team, away_team):
 @tree.command(name="predict", description="Predict the outcome of a match")
 @app_commands.describe(match="Enter match like: Arsenal vs Chelsea")
 async def predict(interaction: discord.Interaction, match: str):
-    await interaction.response.defer(thinking=True)
     try:
         home, away = [team.strip() for team in match.split("vs")]
     except ValueError:
-        await interaction.followup.send("⚠️ Invalid format. Please use: Team1 vs Team2")
+        await interaction.response.send_message("⚠️ Invalid format. Please use: Team1 vs Team2")
         return
 
     prediction = predict_match(home, away)
     if prediction is None:
-        await interaction.followup.send(
+        await interaction.response.send_message(
             f"⚠️ Match not found. Please check team names.\n"
-            f"Try using short forms like 'Man United', 'PSG', etc.\n"
-            f"Use `/teams` to view supported teams."
+            f"Try using full names like 'Manchester United', or check with `/teams`."
         )
         return
 
@@ -154,19 +151,17 @@ async def predict(interaction: discord.Interaction, match: str):
         f"🤝 Draw: {prediction['draw']}%\n"
         f"🚀 {prediction['away_team']} Win: {prediction['away_win']}%"
     )
-    await interaction.followup.send(msg)
+    await interaction.response.send_message(msg)
 
 @tree.command(name="teams", description="Show available teams for prediction")
 async def teams(interaction: discord.Interaction):
-    await interaction.response.defer(thinking=True)
     team_list = sorted(elo_ratings['Club'].unique())
     chunks = [team_list[i:i+20] for i in range(0, len(team_list), 20)]
     for i, chunk in enumerate(chunks):
-        await interaction.followup.send(f"**Teams {i+1}:**\n" + "\n".join(chunk))
+        await interaction.response.send_message(f"**Teams {i+1}:**\n" + "\n".join(chunk))
 
 @tree.command(name="upcoming", description="Show upcoming Premier League matches with date and time")
 async def upcoming(interaction: discord.Interaction):
-    await interaction.response.defer(thinking=True)
     api_key = os.getenv("FOOTBALL_DATA_API_KEY")
     headers = {'X-Auth-Token': api_key}
     url = 'https://api.football-data.org/v4/competitions/PL/matches?status=SCHEDULED'
@@ -178,17 +173,17 @@ async def upcoming(interaction: discord.Interaction):
         logger.info(f"Fetched {len(matches)} upcoming matches.")
 
         if not matches:
-            await interaction.followup.send("⚠️ No upcoming Premier League matches found.")
+            await interaction.response.send_message("⚠️ No upcoming Premier League matches found.")
             return
 
         msg_lines = ["📅 **Upcoming Premier League Matches:**"]
         for match in matches[:10]:
             dt = datetime.strptime(match['utcDate'], "%Y-%m-%dT%H:%M:%SZ")
             msg_lines.append(f"{dt.strftime('%Y-%m-%d %H:%M UTC')} — {match['homeTeam']['name']} vs {match['awayTeam']['name']}")
-        await interaction.followup.send("\n".join(msg_lines))
+        await interaction.response.send_message("\n".join(msg_lines))
     except Exception as e:
         logger.error("Failed to fetch upcoming matches", exc_info=True)
-        await interaction.followup.send("⚠️ Error fetching upcoming matches.")
+        await interaction.response.send_message("⚠️ Error fetching upcoming matches.")
 
 @bot.event
 async def on_ready():
