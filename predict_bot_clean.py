@@ -36,15 +36,12 @@ async def predict(interaction: discord.Interaction, home_team: str, away_team: s
     draw_prob = prediction[1] * 100
     away_prob = prediction[2] * 100
 
-    response = (
-        f"📊 **EdgePlay AI Prediction for {home} vs {away}:**
-"
-        f"🏠 {home} Win: {home_prob:.2f}%
-"
-        f"🤝 Draw: {draw_prob:.2f}%
-"
-        f"🚀 {away} Win: {away_prob:.2f}%"
-    )
+response = (
+    f"📊 **EdgePlay AI Prediction for {home} vs {away}:**\n"
+    f"🏠 {home} Win: {home_prob:.2f}%\n"
+    f"🤝 Draw: {draw_prob:.2f}%\n"
+    f"🚀 {away} Win: {away_prob:.2f}%"
+)
     await interaction.followup.send(response)
 
 @tree.command(name="teams", description="List supported teams in the dataset")
