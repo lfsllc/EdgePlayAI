@@ -1,18 +1,10 @@
-import os
+
 import discord
 from discord.ext import commands
 from discord import app_commands
-import pandas as pd
-import joblib
-from dotenv import load_dotenv
-import json
-import time
-import requests
-from datetime import datetime
 import logging
-import re
-
-load_dotenv()
+import os
+from predict_engine import predict_match, normalize_team_name
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("EdgePlayAI")
@@ -21,183 +13,79 @@ intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
-# === Load model and data ===
-logger.info("Loading model and data...")
-model = joblib.load("model.pkl")
-elo_ratings = pd.read_csv("data/clubelo_ratings.csv")
-with open("data/club_name_mapping.json", "r", encoding="utf-8") as f:
-    team_aliases = {k.lower(): v for k, v in json.load(f).items()}
-logger.info("✅ Resources loaded successfully")
+@bot.event
+async def on_ready():
+    await tree.sync()
+    logger.info(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
+    logger.info(f"🔁 Synced {len(tree.get_commands())} command(s): {[cmd.name for cmd in tree.get_commands()]}")
 
-def normalize_team_name(team_name):
-    clean_name = re.sub(r"\s+fc$", "", team_name.strip(), flags=re.IGNORECASE)
-    normalized = team_aliases.get(clean_name.lower(), clean_name)
-    logger.info(f"Normalized: '{team_name}' → '{normalized}'")
-    return normalized
+@tree.command(name="predict", description="Get a match prediction (e.g. /predict Liverpool vs Arsenal)")
+@app_commands.describe(home_team="Home team", away_team="Away team")
+async def predict(interaction: discord.Interaction, home_team: str, away_team: str):
+    await interaction.response.defer(thinking=True)
 
-def fetch_live_odds(home_team, away_team):
-    try:
-        api_key = os.getenv("a5aa52321225437e9b6e9508040eeb33")
-        if not api_key:
-            logger.warning("⚠️ THEODDS_API_KEY not set in environment")
-            return None, None
-
-        leagues = ["soccer_epl", "soccer_spain_la_liga", "soccer_italy_serie_a",
-                   "soccer_germany_bundesliga", "soccer_france_ligue_one"]
-
-        for league in leagues:
-            url = f"https://api.the-odds-api.com/v4/sports/{league}/odds"
-            params = {
-                "apiKey": api_key,
-                "regions": "uk",
-                "markets": "h2h",
-                "oddsFormat": "decimal"
-            }
-            res = requests.get(url, params=params)
-            if res.status_code != 200:
-                continue
-
-            data = res.json()
-            for match in data:
-                if (home_team.lower() in match['home_team'].lower() and
-                        away_team.lower() in match['away_team'].lower()):
-                    try:
-                        book = match["bookmakers"][0]
-                        outcomes = book["markets"][0]["outcomes"]
-                        return outcomes[0]["price"], outcomes[1]["price"]
-                    except:
-                        continue
-        return None, None
-    except Exception as e:
-        logger.error("Failed to fetch odds", exc_info=True)
-        return None, None
-
-def engineer_features(home_team, away_team):
-    try:
-        home = elo_ratings[elo_ratings["Club"] == home_team]
-        away = elo_ratings[elo_ratings["Club"] == away_team]
-
-        if home.empty or away.empty:
-            logger.warning(f"Missing teams: {home_team} or {away_team}")
-            return None
-
-        home_elo = home["Elo"].values[0]
-        away_elo = away["Elo"].values[0]
-        home_rank = home["Rank"].values[0]
-        away_rank = away["Rank"].values[0]
-
-        logger.info(f"ELO: {home_team} = {home_elo}, {away_team} = {away_elo}, diff = {home_elo - away_elo}")
-
-        home_odds, away_odds = fetch_live_odds(home_team, away_team)
-        if home_odds is None or away_odds is None:
-            logger.warning("⚠️ Odds not found. Defaulting to 0s.")
-            home_odds, away_odds = 0.0, 0.0
-
-        odds_diff = home_odds - away_odds if home_odds and away_odds else 0.0
-        implied_prob_home = 1 / home_odds if home_odds else 0.0
-
-        features = {
-            "elo_diff": home_elo - away_elo,
-            "form_diff": 0, "goal_diff": 0, "rank_diff": away_rank - home_rank,
-            "momentum_diff": 0, "home_away_split_diff": 0, "h2h_home_wins_last3": 0,
-            "h2h_away_wins_last3": 0, "h2h_goal_diff_last3": 0, "draw_rate_last5": 0,
-            "avg_goal_diff_last5": 0, "days_since_last_match": 3, "fixture_density_flag": 0,
-            "odds_diff": odds_diff, "implied_prob_home": implied_prob_home
-        }
-        return pd.DataFrame([features])
-    except Exception as e:
-        logger.error("Feature engineering error", exc_info=True)
-        return None
-
-def predict_match(home_team, away_team):
-    home = normalize_team_name(home_team)
-    away = normalize_team_name(away_team)
-    logger.info(f"Predicting: {home} vs {away}")
-    features = engineer_features(home, away)
-    if features is None:
-        return None
-    try:
-        prediction = model.predict_proba(features)[0]
-        return {
-            'home_team': home, 'away_team': away,
-            'home_win': round(prediction[0] * 100, 2),
-            'draw': round(prediction[1] * 100, 2),
-            'away_win': round(prediction[2] * 100, 2)
-        }
-    except Exception as e:
-        logger.error("Prediction error", exc_info=True)
-        return None
-
-@tree.command(name="predict", description="Predict the outcome of a match")
-@app_commands.describe(match="Enter match like: Arsenal vs Chelsea")
-async def predict(interaction: discord.Interaction, match: str):
-    try:
-        home, away = [team.strip() for team in match.split("vs")]
-    except ValueError:
-        await interaction.followup.send(...)
-
-    prediction = predict_match(home, away)
-    if prediction is None:
-        await interaction.response.send_message(
-            f"⚠️ Match not found. Please check team names.\n"
-            f"Try using full names like 'Manchester United', or check with `/teams`."
-        )
+    prediction, error = predict_match(home_team, away_team)
+    if error:
+        await interaction.followup.send(error)
         return
 
-    msg = (
-        f"📊 **EdgePlay AI Prediction for {prediction['home_team']} vs {prediction['away_team']}:**\n"
-        f"🏠 {prediction['home_team']} Win: {prediction['home_win']}%\n"
-        f"🤝 Draw: {prediction['draw']}%\n"
-        f"🚀 {prediction['away_team']} Win: {prediction['away_win']}%"
+    home = normalize_team_name(home_team)
+    away = normalize_team_name(away_team)
+
+    home_prob = prediction[0] * 100
+    draw_prob = prediction[1] * 100
+    away_prob = prediction[2] * 100
+
+    response = (
+        f"📊 **EdgePlay AI Prediction for {home} vs {away}:**\n"
+        f"🏠 {home} Win: {home_prob:.2f}%\n"
+        f"🤝 Draw: {draw_prob:.2f}%\n"
+        f"🚀 {away} Win: {away_prob:.2f}%"
     )
-    await interaction.response.send_message(msg)
+    await interaction.followup.send(response)
 
-@tree.command(name="teams", description="Show available teams for prediction")
+@tree.command(name="teams", description="List supported teams in the dataset")
 async def teams(interaction: discord.Interaction):
-    team_list = sorted(elo_ratings['Club'].unique())
-    chunks = [team_list[i:i+20] for i in range(0, len(team_list), 20)]
-    for i, chunk in enumerate(chunks):
-        await interaction.response.send_message(f"**Teams {i+1}:**\n" + "\n".join(chunk))
+    with open("data/club_name_mapping.json", "r", encoding="utf-8") as f:
+        import json
+        mapping = json.load(f)
 
-@tree.command(name="upcoming", description="Show upcoming Premier League matches with date and time")
+    unique_names = sorted(set(mapping.values()))
+    chunks = [unique_names[i:i+20] for i in range(0, len(unique_names), 20)]
+
+    await interaction.response.send_message("✅ List of supported team names:")
+    for chunk in chunks:
+        await interaction.followup.send("```
+" + "\n".join(chunk) + "
+```")
+
+@tree.command(name="upcoming", description="See upcoming Premier League matches")
 async def upcoming(interaction: discord.Interaction):
+    import requests
+    await interaction.response.defer(thinking=True)
+
     api_key = os.getenv("FOOTBALL_DATA_API_KEY")
-    headers = {'X-Auth-Token': api_key}
-    url = 'https://api.football-data.org/v4/competitions/PL/matches?status=SCHEDULED'
+    url = "https://api.football-data.org/v4/competitions/PL/matches?status=SCHEDULED"
+    headers = {"X-Auth-Token": api_key}
 
     try:
         response = requests.get(url, headers=headers)
-        data = response.json()
-        matches = data.get("matches", [])
-        logger.info(f"Fetched {len(matches)} upcoming matches.")
+        data = response.json().get("matches", [])
 
-        if not matches:
-            await interaction.response.send_message("⚠️ No upcoming Premier League matches found.")
+        if not data:
+            await interaction.followup.send("⚠️ No upcoming Premier League matches found.")
             return
 
-        msg_lines = ["📅 **Upcoming Premier League Matches:**"]
-        for match in matches[:10]:
-            dt = datetime.strptime(match['utcDate'], "%Y-%m-%dT%H:%M:%SZ")
-            msg_lines.append(f"{dt.strftime('%Y-%m-%d %H:%M UTC')} — {match['homeTeam']['name']} vs {match['awayTeam']['name']}")
-        await interaction.response.send_message("\n".join(msg_lines))
-    except Exception as e:
-        logger.error("Failed to fetch upcoming matches", exc_info=True)
-        await interaction.response.send_message("⚠️ Error fetching upcoming matches.")
+        matches = []
+        for match in data[:10]:
+            date = match['utcDate'].replace("T", " ").replace("Z", "")
+            matches.append(f"{date} — {match['homeTeam']['name']} vs {match['awayTeam']['name']}")
 
-@bot.event
-async def on_ready():
-    logger.info(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
-    try:
-        synced = await tree.sync()
-        logger.info(f"🔁 Synced {len(synced)} command(s): {[cmd.name for cmd in synced]}")
+        await interaction.followup.send("📅 Upcoming Premier League Matches:
+" + "\n".join(matches))
     except Exception as e:
-        logger.error("❌ Failed to sync commands", exc_info=True)
+        logger.error(f"Failed to fetch upcoming matches: {e}")
+        await interaction.followup.send("⚠️ Failed to fetch upcoming matches.")
 
-TOKEN = os.getenv("DISCORD_TOKEN")
-if not TOKEN:
-    logger.critical("❌ DISCORD_TOKEN is missing from environment")
-else:
-    try:
-        bot.run(TOKEN)
-    except Exception as e:
-        logger.critical("❌ Bot crashed during startup", exc_info=True)
+if __name__ == "__main__":
+    bot.run(os.getenv("DISCORD_TOKEN"))
