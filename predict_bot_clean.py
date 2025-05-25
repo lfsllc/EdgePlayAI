@@ -4,10 +4,11 @@ from discord.ext import commands
 from discord import app_commands
 import logging
 import os
+import asyncio
 from predict_engine import predict_match, normalize_team_name
 
-# Your Discord server ID here (as an integer)
-GUILD_ID = 1212123642465353728
+# ✅ Set your Discord Server (Guild) ID here
+GUILD_ID = 1212123642465353728  # Replace this with your actual server ID
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("EdgePlayAI")
@@ -18,6 +19,7 @@ tree = bot.tree
 
 @bot.event
 async def on_ready():
+    await asyncio.sleep(3)  # Prevents premature sync
     guild = discord.Object(id=GUILD_ID)
     await tree.sync(guild=guild)
     logger.info(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
@@ -66,7 +68,7 @@ async def upcoming(interaction: discord.Interaction):
     import requests
     await interaction.response.defer(thinking=True)
 
-    api_key = os.getenv("c5f2b6a97f2600608383ebfb3acbd9b3")
+    api_key = os.getenv("FOOTBALL_DATA_API_KEY")
     url = "https://api.football-data.org/v4/competitions/PL/matches?status=SCHEDULED"
     headers = {"X-Auth-Token": api_key}
 
