@@ -55,9 +55,7 @@ async def teams(interaction: discord.Interaction):
 
     await interaction.response.send_message("✅ List of supported team names:")
     for chunk in chunks:
-        await interaction.followup.send("```
-" + "\n".join(chunk) + "
-```")
+await interaction.followup.send(f"```\n{chr(10).join(chunk)}\n```")
 
 @tree.command(name="upcoming", description="See upcoming Premier League matches")
 async def upcoming(interaction: discord.Interaction):
