@@ -21,7 +21,7 @@ def normalize_team_name(name):
     return team_aliases.get(clean, clean).title()
 
 def fetch_odds(home, away):
-    api_key = os.getenv("THEODDS_API_KEY")
+    api_key = os.getenv("c5f2b6a97f2600608383ebfb3acbd9b3")
     if not api_key:
         logger.warning("⚠️ THEODDS_API_KEY not set in environment")
         return 0, 0  # fallback

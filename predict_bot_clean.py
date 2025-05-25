@@ -6,6 +6,9 @@ import logging
 import os
 from predict_engine import predict_match, normalize_team_name
 
+# Your Discord server ID here (as an integer)
+GUILD_ID = 1212123642465353728
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("EdgePlayAI")
 
@@ -15,11 +18,12 @@ tree = bot.tree
 
 @bot.event
 async def on_ready():
-    await tree.sync()
+    guild = discord.Object(id=GUILD_ID)
+    await tree.sync(guild=guild)
     logger.info(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
-    logger.info(f"🔁 Synced {len(tree.get_commands())} command(s): {[cmd.name for cmd in tree.get_commands()]}")
+    logger.info(f"🔁 Synced commands to guild {guild.id}")
 
-@tree.command(name="predict", description="Get a match prediction (e.g. /predict Liverpool vs Arsenal)")
+@tree.command(name="predict", description="Get a match prediction (e.g. /predict Liverpool vs Arsenal)", guild=discord.Object(id=GUILD_ID))
 @app_commands.describe(home_team="Home team", away_team="Away team")
 async def predict(interaction: discord.Interaction, home_team: str, away_team: str):
     await interaction.response.defer(thinking=True)
@@ -44,7 +48,7 @@ async def predict(interaction: discord.Interaction, home_team: str, away_team: s
     )
     await interaction.followup.send(response)
 
-@tree.command(name="teams", description="List supported teams in the dataset")
+@tree.command(name="teams", description="List supported teams in the dataset", guild=discord.Object(id=GUILD_ID))
 async def teams(interaction: discord.Interaction):
     with open("data/club_name_mapping.json", "r", encoding="utf-8") as f:
         import json
@@ -57,12 +61,12 @@ async def teams(interaction: discord.Interaction):
     for i, chunk in enumerate(chunks):
         await interaction.followup.send(f"**Teams {i+1}:**\n```\n" + "\n".join(chunk) + "\n```")
 
-@tree.command(name="upcoming", description="See upcoming Premier League matches")
+@tree.command(name="upcoming", description="See upcoming Premier League matches", guild=discord.Object(id=GUILD_ID))
 async def upcoming(interaction: discord.Interaction):
     import requests
     await interaction.response.defer(thinking=True)
 
-    api_key = os.getenv("FOOTBALL_DATA_API_KEY")
+    api_key = os.getenv("c5f2b6a97f2600608383ebfb3acbd9b3")
     url = "https://api.football-data.org/v4/competitions/PL/matches?status=SCHEDULED"
     headers = {"X-Auth-Token": api_key}
 
