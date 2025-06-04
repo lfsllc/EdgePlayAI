@@ -86,3 +86,12 @@ def predict_match(home_raw, away_raw):
     except Exception as e:
         logger.error(f"Prediction error: {e}")
         return None, "⚠️ Internal model error"
+
+def get_upcoming_matches():
+    # Temporary static list of upcoming matches (you can connect to an API later)
+    return [
+        {"home_team": "Manchester City", "away_team": "Liverpool", "date": "2025-06-08"},
+        {"home_team": "Arsenal", "away_team": "Chelsea", "date": "2025-06-09"},
+        {"home_team": "Tottenham", "away_team": "Manchester United", "date": "2025-06-10"},
+    ]
+
