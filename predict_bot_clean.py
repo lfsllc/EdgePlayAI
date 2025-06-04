@@ -10,7 +10,6 @@ from predict_engine import predict_match, get_upcoming_matches, get_all_teams
 # Load environment variables
 load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-GUILD_ID = int(os.getenv("GUILD_ID"))
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -23,28 +22,28 @@ tree = client.tree
 @client.event
 async def on_ready():
     try:
-        guild = discord.Object(id=GUILD_ID)
-        await tree.sync(guild=guild)
-        logger.info(f"🔁 Slash commands synced to guild {GUILD_ID}")
-    except Exception as e:
-        logger.warning(f"Guild sync failed: {e}, attempting global sync.")
         await tree.sync()
-        logger.info("🔁 Slash commands synced globally")
+        logger.info("🌍 Slash commands synced globally")
+    except Exception as e:
+        logger.error(f"Global sync failed: {e}")
 
     logger.info(f"✅ Logged in as {client.user} (ID: {client.user.id})")
 
-@tree.command(name="predict", description="Predict the result of a match", guild=discord.Object(id=GUILD_ID))
+# --- Predict command ---
+@tree.command(name="predict", description="Predict the result of a match")
 @app_commands.describe(home_team="Home team name", away_team="Away team name")
 async def predict(interaction: discord.Interaction, home_team: str, away_team: str):
     await interaction.response.defer()
     logger.info(f"Predicting: {home_team} vs {away_team}")
     try:
         prediction = predict_match(home_team, away_team)
-        if prediction is None:
+        if prediction is None or isinstance(prediction, tuple):
             await interaction.followup.send("❌ Could not make a prediction for this match.")
             return
 
-        home_prob, draw_prob, away_prob = prediction
+        home_prob = prediction['home_win']
+        draw_prob = prediction['draw']
+        away_prob = prediction['away_win']
         response = (
             f"📊 **EdgePlay AI Prediction for {home_team} vs {away_team}:**\n"
             f"🏠 {home_team} Win: {home_prob:.2f}%\n"
@@ -56,18 +55,23 @@ async def predict(interaction: discord.Interaction, home_team: str, away_team: s
         logger.error(f"Prediction error: {e}")
         await interaction.followup.send("⚠️ There was an error while making the prediction.")
 
-@tree.command(name="teams", description="List all available teams", guild=discord.Object(id=GUILD_ID))
+# --- Teams command ---
+@tree.command(name="teams", description="List all available teams")
 async def teams(interaction: discord.Interaction):
     await interaction.response.defer()
     try:
         teams_list = get_all_teams()
+        if not teams_list:
+            await interaction.followup.send("📭 No teams found.")
+            return
         teams_str = ", ".join(teams_list[:50]) + "..."
         await interaction.followup.send(f"📋 Available teams (partial list):\n{teams_str}")
     except Exception as e:
         logger.error(f"Teams command error: {e}")
         await interaction.followup.send("⚠️ Failed to retrieve teams.")
 
-@tree.command(name="upcoming", description="Show upcoming Premier League matches", guild=discord.Object(id=GUILD_ID))
+# --- Upcoming matches command ---
+@tree.command(name="upcoming", description="Show upcoming Premier League matches")
 async def upcoming(interaction: discord.Interaction):
     await interaction.response.defer()
     try:
