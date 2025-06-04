@@ -94,4 +94,7 @@ def get_upcoming_matches():
         {"home_team": "Arsenal", "away_team": "Chelsea", "date": "2025-06-09"},
         {"home_team": "Tottenham", "away_team": "Manchester United", "date": "2025-06-10"},
     ]
+def get_all_teams():
+    """Return a list of normalized team names from the ELO dataset."""
+    return sorted(set(elo_ratings["club"].dropna().unique()))
 
