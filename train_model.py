@@ -2,101 +2,68 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from xgboost import XGBClassifier
+import joblib
 
-# === 1. Load and normalize dataset ===
-print("✅ Loading fully enhanced dataset...")
+# === 1. Load dataset with BTTS ===
+print("✅ Loading dataset with BTTS...")
 df = pd.read_csv("data/historical_matches_fully_enhanced.csv", low_memory=False)
 df.columns = df.columns.str.strip().str.lower()
-# Rename columns to match expected schema
-df = df.rename(columns={
-    "hometeam": "home_team",
-    "awayteam": "away_team"
-})
-print(f"✅ Loaded data: {df.shape}")
-print(f"📄 Data columns: {df.columns.tolist()}")
 
-# === 2. Load and normalize Elo ratings ===
-print("📁 Loading Elo ratings...")
-elo_df = pd.read_csv("data/clubelo_ratings.csv")
-elo_df.columns = elo_df.columns.str.strip().str.lower()
-elo_df = elo_df[["club", "elo", "rank"]]
-
-# === 3. Merge Elo ratings ===
-elo_home = elo_df.rename(columns={"club": "home_team", "elo": "home_elo", "rank": "home_rank"})
-elo_away = elo_df.rename(columns={"club": "away_team", "elo": "away_elo", "rank": "away_rank"})
-
-# Show columns for debugging if error happens again
-print(f"📄 Match data columns: {df.columns.tolist()}")
-
-# Merge
-df = df.merge(elo_home, on="home_team", how="left")
-df = df.merge(elo_away, on="away_team", how="left")
-print("✅ Merged Elo ratings")
-
-# === 4. Compute Elo differences ===
-df["elo_diff"] = df["home_elo"] - df["away_elo"]
-df["rank_diff"] = df["away_rank"] - df["home_rank"]
-
-# === 5. Filter required columns ===
+# === 2. Validate required columns ===
 required_cols = [
-    "form_diff", "goal_diff", "elo_diff", "rank_diff",
-    "momentum_diff", "home_away_split_diff", "result",
-    "h2h_home_wins_last3", "h2h_away_wins_last3", "h2h_goal_diff_last3",
-    "draw_rate_last5", "avg_goal_diff_last5",
-    "days_since_last_match", "fixture_density_flag"
+    "elo_diff", "form_diff", "goal_diff", "rank_diff",
+    "momentum_diff", "home_away_split_diff", "h2h_home_wins_last3",
+    "h2h_away_wins_last3", "h2h_goal_diff_last3", "draw_rate_last5",
+    "avg_goal_diff_last5", "days_since_last_match", "fixture_density_flag",
+    "odds_diff", "implied_prob_home", "result", "btts"
 ]
 df = df.dropna(subset=required_cols)
 
-# === 6. Feature Set ===
-features = [
-    "elo_diff", "form_diff", "goal_diff", "rank_diff",
-    "momentum_diff", "home_away_split_diff",
-    "h2h_home_wins_last3", "h2h_away_wins_last3", "h2h_goal_diff_last3",
-    "draw_rate_last5", "avg_goal_diff_last5",
-    "days_since_last_match", "fixture_density_flag"
-]
-target = df["result"].map({-1: 0, 0: 1, 1: 2})  # Remap for XGBoost
+# === 3. 1X2 Prediction Model ===
+X_main = df[[col for col in required_cols if col not in ["result", "btts"]]]
+y_main = df["result"].map({-1: 0, 0: 1, 1: 2})
 
-X = df[features]
-y = target
-
-# === 7. Train/Test Split ===
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+X_train_main, X_test_main, y_train_main, y_test_main = train_test_split(
+    X_main, y_main, test_size=0.2, random_state=42, stratify=y_main
 )
 
-# === 8. Train XGBoost with tuned params ===
-print("⚙️ Training tuned XGBoost classifier...")
-model = XGBClassifier(
-    n_estimators=300,
-    max_depth=4,
-    learning_rate=0.05,
-    subsample=0.8,
-    colsample_bytree=0.8,
-    gamma=0.2,
-    min_child_weight=3,
+model_main = XGBClassifier(
+    n_estimators=400,
+    max_depth=5,
+    learning_rate=0.03,
+    subsample=0.85,
+    colsample_bytree=0.85,
+    gamma=0.1,
+    min_child_weight=2,
     eval_metric='mlogloss',
     random_state=42
 )
-model.fit(X_train, y_train)
+model_main.fit(X_train_main, y_train_main)
 
-# === 9. Evaluation ===
-y_pred = model.predict(X_test)
+# Save model
+joblib.dump(model_main, "model.pkl")
+print("✅ 1X2 Model saved as model.pkl")
 
-# Remap to original classes
-label_map = {0: -1, 1: 0, 2: 1}
-y_pred_mapped = pd.Series(y_pred).map(label_map)
-y_test_mapped = y_test.map(label_map)
+# === 4. BTTS Prediction Model ===
+X_btts = X_main.copy()
+y_btts = df["btts"]
 
-accuracy = accuracy_score(y_test_mapped, y_pred_mapped)
-print(f"\n✅ Model Accuracy: {accuracy:.2%}")
-print("\n📊 Classification Report:")
-print(classification_report(y_test_mapped, y_pred_mapped))
-print("\n🧮 Confusion Matrix:")
-print(confusion_matrix(y_test_mapped, y_pred_mapped))
+X_train_btts, X_test_btts, y_train_btts, y_test_btts = train_test_split(
+    X_btts, y_btts, test_size=0.2, random_state=42, stratify=y_btts
+)
 
-import joblib
+model_btts = XGBClassifier(
+    n_estimators=250,
+    max_depth=4,
+    learning_rate=0.04,
+    subsample=0.85,
+    colsample_bytree=0.85,
+    gamma=0.15,
+    min_child_weight=2,
+    eval_metric='logloss',
+    random_state=42
+)
+model_btts.fit(X_train_btts, y_train_btts)
 
-# === Save the trained model ===
-joblib.dump(model, "model.pkl")
-print("✅ Model saved as model.pkl")
+joblib.dump(model_btts, "model_btts.pkl")
+print("✅ BTTS Model saved as model_btts.pkl")
